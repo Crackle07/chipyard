@@ -15,6 +15,11 @@ class MediumBoomV3Config extends Config(
   new boom.v3.common.WithNMediumBooms(1) ++                         // medium boom config
   new chipyard.config.AbstractConfig)
 
+class CounterBoomV3Config extends Config(
+  new boom.v3.common.WithBoomPerfPrint ++                           // enable perf counters (sim only)
+  new boom.v3.common.WithNMediumBooms(1) ++
+  new chipyard.config.AbstractConfig)
+
 class LargeBoomV3Config extends Config(
   new boom.v3.common.WithNLargeBooms(1) ++                          // large boom config
   new chipyard.config.WithSystemBusWidth(128) ++
@@ -78,6 +83,11 @@ class SimBlockDeviceMegaBoomV3Config extends Config(
 
 class SmallBoomV4Config extends Config(
   new boom.v4.common.WithNSmallBooms(1) ++                          // small boom config
+  new chipyard.config.AbstractConfig)
+
+class CounterBoomV4Config extends Config(
+  new boom.v4.common.WithBoomPerfPrint ++                           // enable perf counters (sim only)
+  new boom.v4.common.WithNMediumBooms(1) ++
   new chipyard.config.AbstractConfig)
 
 class MediumBoomV4Config extends Config(
