@@ -110,6 +110,35 @@ def parse_metrics(log_path: Path) -> dict:
     return metrics
 
 
+def parse_boom_perf_file(perf_path: Path) -> dict:
+    """
+    Parse the last BOOMV4_PERF_FINAL line from boom_perf.out.
+    Returns a dict with all key=value pairs from that line.
+    'instret' is mapped to 'instructions' for the top-level columns.
+    """
+    if not perf_path.exists():
+        return {}
+    try:
+        text = perf_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    # Find the last BOOM_PERF_FINAL line (v3: BOOM_PERF_FINAL, v4: BOOMV4_PERF_FINAL)
+    last_line = None
+    for line in text.splitlines():
+        if line.startswith("BOOM_PERF_FINAL") or line.startswith("BOOMV4_PERF_FINAL"):
+            last_line = line
+    if last_line is None:
+        return {}
+    result: dict = {}
+    for kv in re.findall(r"(\w+)=(\d+)", last_line):
+        key, val = kv
+        result[key] = int(val)
+    # Map instret -> instructions for top-level columns
+    if "instret" in result:
+        result["instructions"] = result.pop("instret")
+    return result
+
+
 def parse_github_user(remote_url: str | None) -> str:
     """Extract GitHub user/org from remote.origin.url (e.g. github.com/owner/repo -> owner)."""
     if not remote_url:
@@ -176,14 +205,43 @@ def run_log(
     dst_name = f"{ts}_{user}_{chipyard_config}_{safe_bench}.log"
     dst = log_subdir / dst_name
 
-    try:
-        shutil.copy2(src, dst)
-    except OSError as e:
-        _exit_warn(str(e))
+    # try:
+    #     shutil.copy2(src, dst)
+    # except OSError as e:
+    #     _exit_warn(str(e))
 
     git = get_git_metadata(chipyard_root)
+
+    # If the repo is dirty, save git diff HEAD to a .diff file alongside the log.
+    # Uncomment the block below and add a diff_path column to the schema/insert_run to use.
+    #
+    # diff_path = None
+    # if git["is_dirty"]:
+    #     try:
+    #         diff_text = subprocess.run(
+    #             ["git", "diff", "HEAD"], cwd=chipyard_root,
+    #             capture_output=True, text=True, timeout=30
+    #         ).stdout
+    #         diff_file = log_subdir / dst_name.replace(".log", ".diff")
+    #         diff_file.write_text(diff_text, encoding="utf-8")
+    #         diff_path = str(diff_file)
+    #     except Exception:
+    #         pass
+
     metrics_dict = parse_metrics(src)
-    metrics_json = json.dumps(metrics_dict)
+
+    # Auto-detect boom_perf.out from sim_dir and merge BOOM perf counters
+    if sim_dir:
+        boom_perf_path = Path(sim_dir) / "output" / "boom_perf.out"
+        boom_perf = parse_boom_perf_file(boom_perf_path)
+        if boom_perf:
+            for key in ("cycles", "instructions"):
+                if key in boom_perf:
+                    metrics_dict[key] = boom_perf.pop(key)
+            perf_counters = boom_perf
+        else:
+            perf_counters = None
+
     cycles = metrics_dict.get("cycles")
     instructions = metrics_dict.get("instructions")
     ipc = None
@@ -191,6 +249,11 @@ def run_log(
     if cycles and instructions and cycles > 0:
         ipc = instructions / cycles
         cpi = cycles / instructions
+        metrics_dict["ipc"] = ipc
+        metrics_dict["cpi"] = cpi
+    if perf_counters:
+        metrics_dict["performance_counters"] = perf_counters
+    metrics_json = json.dumps(metrics_dict)
 
     # Ensure DB exists
     try:
@@ -221,8 +284,7 @@ def run_log(
     except Exception:
         pass
 
-    # Store absolute path for portability
-    log_path_stored = str(dst.resolve())
+    # log_path_stored = str(dst.resolve())
     run_dir_stored = str(Path(sim_dir).resolve()) if sim_dir else ""
     github_user = parse_github_user(git["remote_url"])
 
@@ -236,12 +298,10 @@ def run_log(
             is_dirty=git["is_dirty"],
             config=chipyard_config,
             benchmark=bench,
-            cycles=cycles,
-            instructions=instructions,
-            ipc=ipc,
-            cpi=cpi,
+            # cycles=cycles,
+            # instructions=instructions,
             metrics=metrics_json,
-            log_path=log_path_stored,
+            # log_path=log_path_stored,
             run_dir=run_dir_stored,
             simulator=simulator,
             github_user=github_user,

@@ -82,12 +82,10 @@ def insert_run(
     is_dirty: bool,
     config: str,
     benchmark: str | None,
-    cycles: int | None = None,
-    instructions: int | None = None,
-    ipc: float | None = None,
-    cpi: float | None = None,
+    # cycles: int | None = None,
+    # instructions: int | None = None,
     metrics: str = "{}",
-    log_path: str | None,
+    # log_path: str | None,
     run_dir: str | None = None,
     simulator: str | None = None,
     github_user: str | None = None,
@@ -98,8 +96,8 @@ def insert_run(
     conn.execute(
         """INSERT INTO runs (
             build_id, commit_hash, branch, remote_url, is_dirty, config,
-            benchmark, cycles, instructions, ipc, cpi, metrics, log_path, run_dir, simulator, github_user, user, host
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            benchmark, metrics, run_dir, simulator, github_user, user, host
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             build_id,
             commit_hash,
@@ -108,12 +106,7 @@ def insert_run(
             1 if is_dirty else 0,
             config,
             benchmark or "",
-            cycles,
-            instructions,
-            ipc,
-            cpi,
             metrics,
-            log_path or "",
             run_dir or "",
             simulator or "",
             github_user or "",
