@@ -356,7 +356,13 @@ class FireSimLargeBoomSV39CospikeConfig extends Config(
 
 class CTCFireSimConfig extends Config(
   new WithCTCBridge ++
-  new testchipip.ctc.WithCTC(Seq(new testchipip.ctc.CTCParams(onchipAddr = 0x1000000000L, offchipAddr = 0x0L, size = ((1L << 32) - 1), noPhy=true))) ++ 
+  new testchipip.ctc.WithCTC(Seq(testchipip.ctc.CTCParams(
+    translationParams = testchipip.soc.OutwardAddressTranslatorParams(
+      onchipAddr = 0x1000000000L,
+      offchipAddr = 0x0L,
+      size = (1L << 32) - 1),
+    phyParams = None
+  ))) ++
   new chipyard.iobinders.WithCTCPunchthrough ++ 
   new FireSimRocketConfig
 )
