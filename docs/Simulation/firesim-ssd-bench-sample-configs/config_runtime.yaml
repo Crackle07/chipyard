@@ -1,0 +1,52 @@
+# Sample runtime configuration for the FireSim SSD benchmark.
+# Copy this to sims/firesim/deploy/config_runtime.yaml on a manager host and
+# edit the live copy for that deployment.
+
+run_farm:
+  base_recipe: run-farm-recipes/aws_ec2.yaml
+  # recipe_arg_overrides:
+  #   <ARG>: <OVERRIDE>
+
+metasimulation:
+  metasimulation_enabled: false
+  metasimulation_host_simulator: verilator
+  metasimulation_only_plusargs: "+fesvr-step-size=128 +max-cycles=100000000"
+  metasimulation_only_vcs_plusargs: "+vcs+initreg+0 +vcs+initmem+0"
+
+target_config:
+    topology: no_net_config
+    no_net_num_nodes: 1
+    link_latency: 6405
+    switching_latency: 10
+    net_bandwidth: 200
+    profile_interval: -1
+    default_hw_config: firesim_rocket_singlecore_ssd_bench
+
+    # Future C++ latency-model runtime options should be added here once that
+    # interface exists. Keep this sample free of external flash-model config
+    # files so it remains portable.
+    plusarg_passthrough: "+blkdev-target-freq-mhz0=1000"
+
+tracing:
+    enable: no
+    output_format: 0
+    selector: 1
+    start: 0
+    end: -1
+
+autocounter:
+    read_rate: 0
+
+workload:
+    workload_name: br-ssd-bench.json
+    terminate_on_completion: yes
+    suffix_tag: ssd-bench
+
+host_debug:
+    zero_out_dram: no
+    disable_synth_asserts: no
+
+synth_print:
+    start: 0
+    end: -1
+    cycle_prefix: yes

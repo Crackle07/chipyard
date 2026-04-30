@@ -1,0 +1,12 @@
+# Sample build-time design / AGFI configuration for the SSD benchmark.
+# Copy this to sims/firesim/deploy/config_build.yaml on a manager host and
+# enable the build only after confirming the target platform.
+
+build_farm:
+  base_recipe: build-farm-recipes/aws_ec2.yaml
+
+builds_to_run: []
+#  - firesim_rocket_singlecore_ssd_bench
+
+agfis_to_share: []
+share_with_accounts: {}

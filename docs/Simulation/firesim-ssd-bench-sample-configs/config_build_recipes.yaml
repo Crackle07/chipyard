@@ -1,0 +1,20 @@
+# Sample FireSim build recipe for the SSD benchmark hardware.
+# This is sample state, not a live deploy configuration.
+
+firesim_rocket_singlecore_ssd_bench:
+    PLATFORM: f1
+    TARGET_PROJECT: firechip
+    TARGET_PROJECT_MAKEFRAG: ../../generators/firechip/chip/src/main/makefrag/firesim
+    DESIGN: FireSim
+    TARGET_CONFIG: FireSimRocketConfig
+    PLATFORM_CONFIG: BaseF1Config
+    deploy_quintuplet: null
+    platform_config_args:
+        fpga_frequency: 75
+        build_strategy: TIMING
+    post_build_hook: null
+    metasim_customruntimeconfig: null
+    bit_builder_recipe: bit-builder-recipes/f1.yaml
+    # Add future latency-model build inputs here only if the model grows a
+    # build-time artifact dependency. Runtime model options should normally go
+    # in config_runtime.yaml plusargs.

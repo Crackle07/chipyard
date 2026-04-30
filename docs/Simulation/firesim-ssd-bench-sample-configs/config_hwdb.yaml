@@ -1,0 +1,10 @@
+# Sample hardware config DB entry for the SSD benchmark.
+# Fill in exactly one of agfi or bitstream_tar in the live deploy copy after
+# the SSD-capable hardware artifact exists on the manager side.
+
+firesim_rocket_singlecore_ssd_bench:
+    agfi: null
+    bitstream_tar: null
+    deploy_quintuplet_override: null
+    deploy_makefrag_override: ../../generators/firechip/chip/src/main/makefrag/firesim
+    custom_runtime_config: null

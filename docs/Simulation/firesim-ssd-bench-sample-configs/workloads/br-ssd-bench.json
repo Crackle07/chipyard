@@ -1,0 +1,13 @@
+{
+  "benchmark_name": "br-ssd-bench",
+  "common_simulation_outputs": [
+    "uartlog",
+    "blkdev-log0"
+  ],
+  "common_bootbinary": "../../../../../software/firemarshal/images/firechip/br-ssd-bench/br-ssd-bench-bin",
+  "common_rootfs": "../../../../../software/firemarshal/images/firechip/br-ssd-bench/br-ssd-bench.img",
+  "common_outputs": [
+    "/tmp/ssd_bench.log",
+    "/root/blkdev_bench_out.log"
+  ]
+}
