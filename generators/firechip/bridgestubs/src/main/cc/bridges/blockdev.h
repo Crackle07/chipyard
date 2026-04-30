@@ -20,12 +20,26 @@ struct BLOCKDEVBRIDGEMODULE_struct {
   uint64_t bdev_req_tag;
   uint64_t bdev_req_ready;
   uint64_t bdev_data_valid;
-  uint64_t bdev_data_data_upper;
-  uint64_t bdev_data_data_lower;
+  // 256-bit beat exposed as eight 32-bit registers.
+  // _0 = bits[31:0], _1 = bits[63:32], ..., _7 = bits[255:224].
+  uint64_t bdev_data_data_0;
+  uint64_t bdev_data_data_1;
+  uint64_t bdev_data_data_2;
+  uint64_t bdev_data_data_3;
+  uint64_t bdev_data_data_4;
+  uint64_t bdev_data_data_5;
+  uint64_t bdev_data_data_6;
+  uint64_t bdev_data_data_7;
   uint64_t bdev_data_tag;
   uint64_t bdev_data_ready;
-  uint64_t bdev_rresp_data_upper;
-  uint64_t bdev_rresp_data_lower;
+  uint64_t bdev_rresp_data_0;
+  uint64_t bdev_rresp_data_1;
+  uint64_t bdev_rresp_data_2;
+  uint64_t bdev_rresp_data_3;
+  uint64_t bdev_rresp_data_4;
+  uint64_t bdev_rresp_data_5;
+  uint64_t bdev_rresp_data_6;
+  uint64_t bdev_rresp_data_7;
   uint64_t bdev_rresp_tag;
   uint64_t bdev_rresp_valid;
   uint64_t bdev_rresp_ready;
@@ -35,11 +49,13 @@ struct BLOCKDEVBRIDGEMODULE_struct {
   uint64_t bdev_reqs_pending;
   uint64_t bdev_wack_stalled;
   uint64_t bdev_rresp_stalled;
+  uint64_t bdev_target_cycle;
 };
 
 #define SECTOR_SIZE 512
 #define SECTOR_SHIFT 9
-#define SECTOR_BEATS (SECTOR_SIZE / 8)
+#define SECTOR_BEATS (SECTOR_SIZE / 32)
+#define BEAT_WORDS 4
 #define MAX_REQ_LEN 16
 
 struct blkdev_request {
@@ -50,7 +66,7 @@ struct blkdev_request {
 };
 
 struct blkdev_data {
-  uint64_t data;
+  uint64_t data[BEAT_WORDS];
   uint32_t tag;
 };
 
@@ -58,7 +74,7 @@ struct blkdev_write_tracker {
   uint64_t offset;
   uint64_t count;
   uint64_t size;
-  uint64_t data[MAX_REQ_LEN * SECTOR_BEATS];
+  uint64_t data[MAX_REQ_LEN * SECTOR_BEATS * BEAT_WORDS];
 };
 
 class blockdev_t : public bridge_driver_t {

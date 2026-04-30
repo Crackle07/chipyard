@@ -22,7 +22,7 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
     val sectorBits = 32
     val nTrackers = blockDevExternal.nTrackers
     val tagBits = log2Up(nTrackers)
-    val dataBitsPerBeat = 64
+    val dataBitsPerBeat = 256
     val dataBeats = (dataBytes * 8) / dataBitsPerBeat // A transaction is thus dataBeats * len beats long
     // Timing parameters
     val latencyBits = 24
@@ -195,21 +195,28 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
     genROReg(reqBuf.io.deq.bits.tag, "bdev_req_tag")
     Pulsify(genWORegInit(reqBuf.io.deq.ready, "bdev_req_ready", false.B), pulseLength = 1)
 
-    // Functional data queue (to CPU)
+    // Functional data queue (to CPU).
+    // Each 256-bit beat is exposed as eight 32-bit read-only registers:
+    //   bdev_data_data_0 = bits[31:0], bdev_data_data_7 = bits[255:224]
     genROReg(dataBuf.io.deq.valid, "bdev_data_valid")
-    genROReg(dataBuf.io.deq.bits.data(63, 32), "bdev_data_data_upper")
-    genROReg(dataBuf.io.deq.bits.data(31, 0), "bdev_data_data_lower")
+    for (i <- 0 until 8) {
+      genROReg(dataBuf.io.deq.bits.data(32*i+31, 32*i), s"bdev_data_data_$i")
+    }
     genROReg(dataBuf.io.deq.bits.tag, "bdev_data_tag")
     Pulsify(genWORegInit(dataBuf.io.deq.ready, "bdev_data_ready", false.B), pulseLength = 1)
 
-    // Read reponse buffer MMIO IF (from CPU)
-    val rRespDataRegUpper = genWOReg(Wire(UInt((dataBitsPerBeat/2).W)),"bdev_rresp_data_upper")
-    val rRespDataRegLower = genWOReg(Wire(UInt((dataBitsPerBeat/2).W)),"bdev_rresp_data_lower")
-    val rRespTag          = genWOReg(Wire(UInt(tagBits.W)            ),"bdev_rresp_tag")
-    Pulsify(                genWORegInit(rRespBuf.io.enq.valid  ,"bdev_rresp_valid", false.B), pulseLength = 1)
+    // Read response buffer MMIO IF (from CPU).
+    // Each 256-bit beat is written as eight 32-bit write-only registers:
+    //   bdev_rresp_data_0 = bits[31:0], bdev_rresp_data_7 = bits[255:224]
+    val rRespDataRegs = (0 until 8).map { i =>
+      genWOReg(Wire(UInt(32.W)), s"bdev_rresp_data_$i")
+    }
+    val rRespTag = genWOReg(Wire(UInt(tagBits.W)), "bdev_rresp_tag")
+    Pulsify(genWORegInit(rRespBuf.io.enq.valid, "bdev_rresp_valid", false.B), pulseLength = 1)
     genROReg(rRespBuf.io.enq.ready, "bdev_rresp_ready")
 
-    rRespBuf.io.enq.bits.data := Cat(rRespDataRegUpper, rRespDataRegLower)
+    // Reassemble: index 7 is MSB, index 0 is LSB; Cat takes MSB first.
+    rRespBuf.io.enq.bits.data := Cat(rRespDataRegs.reverse)
     rRespBuf.io.enq.bits.tag := rRespTag
 
     // Write acknowledgement buffer MMIO IF (from CPU) -- we only need the tag from SW
@@ -222,6 +229,10 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
     genROReg(reqBuf.io.deq.valid || dataBuf.io.deq.valid, "bdev_reqs_pending")
     genROReg(~wAckStallN, "bdev_wack_stalled")
     genROReg(~rRespStallN, "bdev_rresp_stalled")
+
+    // Expose the target cycle counter so future host latency models can
+    // align completions with simulated target time.
+    genROReg(tCycle, "bdev_target_cycle")
 
     genCRFile()
 

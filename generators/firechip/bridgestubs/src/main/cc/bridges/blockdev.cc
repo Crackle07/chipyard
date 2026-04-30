@@ -13,7 +13,11 @@ char blockdev_t::KIND;
  * This works in conjunction with
  * testchipip/src/main/scala/BlockDevice.scala (Block Device RTL)
  * and
- * src/main/scala/bridges/BlockDevWidget.scala
+ * generators/firechip/goldengateimplementations/src/main/scala/BlockDevBridgeModule.scala
+ *
+ * Each 256-bit data beat is transferred over eight 32-bit MMIO registers
+ * named bdev_data_data_{0..7} and bdev_rresp_data_{0..7}. Register _N
+ * carries bits [32*N+31 : 32*N] of the beat.
  */
 
 /* Uncomment to get DEBUG printing
@@ -161,12 +165,11 @@ void blockdev_t::init() {
  * widget on the FPGA */
 void blockdev_t::do_read(struct blkdev_request &req) {
   uint64_t offset, nbeats;
-  uint64_t blk_data[MAX_REQ_LEN * SECTOR_BEATS];
+  uint64_t blk_data[MAX_REQ_LEN * SECTOR_BEATS * BEAT_WORDS];
 
   offset = req.offset;
   offset <<= SECTOR_SHIFT;
-  nbeats = req.len;
-  nbeats *= SECTOR_BEATS;
+  nbeats = (uint64_t)req.len * SECTOR_BEATS;
 
   /* Check that the request is valid. */
   if ((req.offset + req.len) > nsectors()) {
@@ -204,11 +207,10 @@ void blockdev_t::do_read(struct blkdev_request &req) {
     abort();
   }
 
-  /* Populate response queue from data that has been read from file. Response
-   * queue will be consumed when writing to FPGA. */
+  /* Populate response queue from data that has been read from file. */
   for (uint64_t i = 0; i < nbeats; i++) {
     struct blkdev_data resp;
-    resp.data = blk_data[i];
+    memcpy(resp.data, &blk_data[i * BEAT_WORDS], sizeof(resp.data));
     resp.tag = req.tag;
     read_responses.push(resp);
   }
@@ -245,11 +247,9 @@ void blockdev_t::do_write(struct blkdev_request &req) {
   }
 
   /* Setup tracker state */
-  tracker.offset = req.offset;
-  tracker.offset *= SECTOR_SIZE;
+  tracker.offset = (uint64_t)req.offset * SECTOR_SIZE;
   tracker.count = 0;
-  tracker.size = req.len;
-  tracker.size *= SECTOR_BEATS;
+  tracker.size = (uint64_t)req.len * SECTOR_BEATS;
 }
 
 /* Confirm that a write_tracker has been setup for a chunk of data that
@@ -268,8 +268,10 @@ void blockdev_t::handle_data(struct blkdev_data &data) {
 
   struct blkdev_write_tracker &tracker = write_trackers[data.tag];
 
-  /* Copy data into the write tracker */
-  tracker.data[tracker.count] = data.data;
+  /* Copy the 256-bit beat into the write tracker. */
+  memcpy(&tracker.data[tracker.count * BEAT_WORDS],
+         data.data,
+         sizeof(data.data));
   tracker.count++;
 
   if (tracker.count < tracker.size) {
@@ -285,8 +287,10 @@ void blockdev_t::handle_data(struct blkdev_data &data) {
   }
 
   /* Perform the write to file. */
-  if (fwrite(tracker.data, sizeof(uint64_t), tracker.count, _file) <
-      tracker.count) {
+  if (fwrite(tracker.data,
+             sizeof(uint64_t),
+             tracker.count * BEAT_WORDS,
+             _file) < tracker.count * BEAT_WORDS) {
     fprintf(stderr, "Cannot write data at %" PRIx64 "\n", tracker.offset);
     abort();
   }
@@ -320,16 +324,24 @@ void blockdev_t::recv() {
                   req.tag);
   }
 
-  /* Read all pending data beats from the widget */
+  /* Read all pending 256-bit data beats from the widget. */
   while (read(mmio_addrs.bdev_data_valid)) {
-    /* Take a data chunk from the FPGA and put it in SW processing queues */
     struct blkdev_data data;
-    data.data = (((uint64_t)read(mmio_addrs.bdev_data_data_upper)) << 32) |
-                (read(mmio_addrs.bdev_data_data_lower) & 0xFFFFFFFF);
+    const uint64_t beat_addrs[8] = {
+      mmio_addrs.bdev_data_data_0, mmio_addrs.bdev_data_data_1,
+      mmio_addrs.bdev_data_data_2, mmio_addrs.bdev_data_data_3,
+      mmio_addrs.bdev_data_data_4, mmio_addrs.bdev_data_data_5,
+      mmio_addrs.bdev_data_data_6, mmio_addrs.bdev_data_data_7,
+    };
+    for (int i = 0; i < 8; i++) {
+      ((uint32_t *)data.data)[i] = (uint32_t)read(beat_addrs[i]);
+    }
     data.tag = read(mmio_addrs.bdev_data_tag);
     write(mmio_addrs.bdev_data_ready, true);
     req_data.push(data);
-    blkdev_printf("[disk] got data. data %llx, tag %x\n", data.data, data.tag);
+    blkdev_printf("[disk] got data. data[0] %llx, tag %x\n",
+                  (unsigned long long)data.data[0],
+                  data.tag);
   }
 }
 
@@ -346,16 +358,24 @@ void blockdev_t::send() {
     write_acks.pop();
   }
 
-  /* Send as much read reponse data as as the blockdev widget will accept */
+  /* Send as much read response data as the blockdev widget will accept. */
   while (!read_responses.empty() && read(mmio_addrs.bdev_rresp_ready)) {
-    struct blkdev_data resp;
-    resp = read_responses.front();
-    write(mmio_addrs.bdev_rresp_data_upper, (resp.data >> 32) & 0xFFFFFFFF);
-    write(mmio_addrs.bdev_rresp_data_lower, resp.data & 0xFFFFFFFF);
+    const struct blkdev_data &resp = read_responses.front();
+    const uint64_t rresp_addrs[8] = {
+      mmio_addrs.bdev_rresp_data_0, mmio_addrs.bdev_rresp_data_1,
+      mmio_addrs.bdev_rresp_data_2, mmio_addrs.bdev_rresp_data_3,
+      mmio_addrs.bdev_rresp_data_4, mmio_addrs.bdev_rresp_data_5,
+      mmio_addrs.bdev_rresp_data_6, mmio_addrs.bdev_rresp_data_7,
+    };
+    for (int i = 0; i < 8; i++) {
+      write(rresp_addrs[i], ((const uint32_t *)resp.data)[i]);
+    }
     write(mmio_addrs.bdev_rresp_tag, resp.tag);
     write(mmio_addrs.bdev_rresp_valid, true);
     blkdev_printf(
-        "[disk] sending R resp. data %llx, tag %x\n", resp.data, resp.tag);
+        "[disk] sending R resp. data[0] %llx, tag %x\n",
+        (unsigned long long)resp.data[0],
+        resp.tag);
     read_responses.pop();
   }
 

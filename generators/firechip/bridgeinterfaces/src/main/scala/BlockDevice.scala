@@ -18,7 +18,7 @@ trait HasBlockDeviceParameters {
   def nTrackers = bdParams.nTrackers
   def tagBits = log2Up(nTrackers)
   def nTrackerBits = log2Up(nTrackers+1)
-  def dataBitsPerBeat = 64
+  def dataBitsPerBeat = 256
   def dataBeats = (dataBytes * 8) / dataBitsPerBeat
   def sectorSize = log2Ceil(sectorBits/8)
   def beatIdxBits = log2Ceil(dataBeats)
