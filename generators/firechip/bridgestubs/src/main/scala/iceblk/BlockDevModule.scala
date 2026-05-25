@@ -57,13 +57,16 @@ class BlockDevDUT(implicit val p: Parameters) extends Module {
   wdev.resp.ready      := true.B
 
   // Count writes and mark the read-write requests as finished once a full sector is transferred.
-  val write_offset = RegInit(0.U(6.W))
+  val dataBeats = 512 * 8 / wdev.data.bits.data.getWidth
+  val write_offset = RegInit(0.U(log2Ceil(dataBeats).W))
   when(wdev.data.fire) {
-    write_offset := write_offset + 1.U
-    when(write_offset.andR) {
+    when(write_offset === (dataBeats - 1).U) {
+      write_offset   := 0.U
       write_pending := false.B
       read_pending  := false.B
       sector        := sector + 1.U
+    }.otherwise {
+      write_offset := write_offset + 1.U
     }
   }
 }

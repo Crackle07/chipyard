@@ -61,33 +61,81 @@ class UARTF1Test extends UARTTest(BaseConfigs.F1)
 
 class BlockDevTest(targetConfig: BasePlatformConfig)
     extends BridgeSuite("BlockDevModule", "NoConfig", targetConfig) {
+  private def makeSSDConfig(): File = {
+    val config = File.createTempFile("blockdev-ssd-config", ".ini")
+    config.deleteOnExit()
+    val writer = new BufferedWriter(new FileWriter(config))
+    writer.write(
+      """[sim]
+        |FixedPolicy=false
+        |TargetClockHz=1000000000
+        |
+        |[pal]
+        |Channel=2
+        |Way=1
+        |Die=1
+        |Plane=1
+        |PageSize=512
+        |DMASpeed=512000000000
+        |NANDType=SLC
+        |Read.LSB=10
+        |Program.LSB=20
+        |
+        |[hil]
+        |CmdOverhead=2
+        |CompletionOverhead=3
+        |HostBandwidth=512000000000
+        |""".stripMargin,
+    )
+    writer.flush()
+    writer.close()
+    config
+  }
+
+  private def runCopyTest(backend: String, debug: Boolean, extraArgs: Seq[String]): Unit = {
+    // Generate a random string spanning 2 sectors with a fixed seed.
+    val data = getTestString(1024)
+
+    // Create an input file.
+    val input       = File.createTempFile("input", ".txt")
+    input.deleteOnExit()
+    val inputWriter = new BufferedWriter(new FileWriter(input))
+    inputWriter.write(data)
+    inputWriter.flush()
+    inputWriter.close()
+
+    // Pre-allocate space in the output.
+    val output       = File.createTempFile("output", ".txt")
+    output.deleteOnExit()
+    val outputWriter = new BufferedWriter(new FileWriter(output))
+    for (i <- 1 to data.size) {
+      outputWriter.write('x')
+    }
+    outputWriter.flush()
+    outputWriter.close()
+
+    val runResult = run(
+      backend,
+      debug,
+      args = Seq(s"+blkdev0=${input.getPath}", s"+blkdev1=${output.getPath}") ++ extraArgs,
+    )
+    assert(runResult == 0)
+    val result = scala.io.Source.fromFile(output.getPath).mkString
+    result should equal(data)
+  }
+
   override def defineTests(backend: String, debug: Boolean) {
     it should "copy from one device to another" in {
-      // Generate a random string spanning 2 sectors with a fixed seed.
-      val data = getTestString(1024)
+      runCopyTest(backend, debug, Nil)
+    }
 
-      // Create an input file.
-      val input       = File.createTempFile("input", ".txt")
-      input.deleteOnExit()
-      val inputWriter = new BufferedWriter(new FileWriter(input))
-      inputWriter.write(data)
-      inputWriter.flush()
-      inputWriter.close()
-
-      // Pre-allocate space in the output.
-      val output       = File.createTempFile("output", ".txt")
-      output.deleteOnExit()
-      val outputWriter = new BufferedWriter(new FileWriter(output))
-      for (i <- 1 to data.size) {
-        outputWriter.write('x')
-      }
-      outputWriter.flush()
-      outputWriter.close()
-
-      val runResult = run(backend, debug, args = Seq(s"+blkdev0=${input.getPath}", s"+blkdev1=${output.getPath}"))
-      assert(runResult == 0)
-      val result    = scala.io.Source.fromFile(output.getPath).mkString
-      result should equal(data)
+    it should "copy from one device to another with SSD host timing" in {
+      val config = makeSSDConfig()
+      runCopyTest(
+        backend,
+        debug,
+        Seq(s"+blkdev-ssd-config0=${config.getPath}", s"+blkdev-ssd-config1=${config.getPath}"),
+      )
     }
   }
 }
