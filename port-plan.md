@@ -4,6 +4,59 @@ This document is the working port plan for moving the SSD timing/cache model fro
 
 The local workspace has one Chipyard checkout at `/scratch/anishs/chipyard`. The source branch is `SSD`; the target branch is remote ref `upstream/firesim-f2-bump`.
 
+## Execution Status
+
+Last updated from the live workspace after running Phases 0, 1, and 2.
+
+Phase 0 is complete. The dirty PAL/ICL work is now committed on `SSD` as replayable commits:
+
+| Commit | Purpose |
+|---|---|
+| `85c3076e` | Records the new `generators/testchipip` submodule pointer |
+| `534092d3` | Adds `ssd_latency_model.{cc,h}` |
+| `962bb8cc` | Adds SSD host-timing mode to the block-device bridge |
+| `6e315a59` | Adds C++ and Scala bridge tests |
+| `dba5b29e` | Adds baremetal validation workloads/configs/scripts |
+| `dcf0bf11` | Adds validation baselines and this port plan |
+
+The `generators/testchipip` submodule also has one new local commit:
+
+| Commit | Purpose |
+|---|---|
+| `450a527` | Allows 256 block-device trackers and clamps queue-count CSR widths |
+
+Backups created before committing:
+
+```bash
+/scratch/anishs/ssd-superproject-dirty.patch
+/scratch/anishs/ssd-testchipip-dirty.patch
+/scratch/anishs/ssd-superproject-untracked.tar.gz
+```
+
+Generated FireSim run artifacts were stashed inside `sims/firesim`:
+
+```bash
+cd /scratch/anishs/chipyard/sims/firesim
+git stash list
+# stash@{0}: On (no branch): generated metasim outputs before SSD port
+```
+
+Phase 1 was rerun at `dcf0bf11`. The source branch had 9 unique commits relative to `upstream/main` at that point:
+
+```bash
+dcf0bf11 Document SSD latency validation plan
+dba5b29e Add SSD latency validation workloads
+6e315a59 Add SSD block-device bridge tests
+962bb8cc Add SSD host-timing mode to block device bridge
+534092d3 Add SSD PAL and ICL latency model
+85c3076e Bump testchipip for SSD block-device tracker depth
+18a644bd Document SSD block bridge architecture
+c00e6edd Add SSD FireSim sample configs
+c0699789 Update SSD submodule revisions
+```
+
+Phase 2 was also rerun after Phase 0. `git merge-tree` predicts one textual conflict in `generators/firechip/chip/src/main/scala/TargetConfigs.scala`, caused by the old CTC hunk from `c0699789` conflicting with the newer upstream CTC fix already present in `firesim-f2-bump`. Do not replay that old CTC hunk. The block-device bridge files merge textually, but still need semantic review because they change the bridge ABI and timing ownership.
+
 ## Phase 0: Make the Source Branch Replayable
 
 Goal: turn the dirty PAL/ICL research state into clean commits before creating the F2 port branch. This prevents later cherry-picks from carrying only the already committed documentation/submodule updates while dropping the live model files.
