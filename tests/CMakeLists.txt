@@ -69,6 +69,19 @@ add_link_options(-T ${LINKER_SCRIPT})
 
 add_executable(pwm pwm.c)
 add_executable(blkdev blkdev.c)
+add_executable(blkdev-pal-parallelism blkdev-pal-parallelism.c)
+add_executable(blkdev-qdepth blkdev-qdepth.c)
+add_executable(blkdev-pm1725a-probe blkdev-pm1725a-probe.c)
+add_executable(blkdev-pm1725a-probe-1sector blkdev-pm1725a-probe-1sector.c)
+add_executable(blkdev-icl-fill blkdev-icl-fill.c)
+add_executable(blkdev-icl-sustained blkdev-icl-sustained.c)
+add_executable(blkdev-icl-eviction-order blkdev-icl-eviction-order.c)
+add_executable(blkdev-icl-ryow blkdev-icl-ryow.c)
+add_executable(blkdev-icl-read-hit-latency blkdev-icl-read-hit-latency.c)
+add_executable(blkdev-icl-eviction-then-read blkdev-icl-eviction-then-read.c)
+add_executable(blkdev-icl-rmw-cold blkdev-icl-rmw-cold.c)
+add_executable(blkdev-icl-rmw-warm blkdev-icl-rmw-warm.c)
+add_executable(blkdev-icl-rmw-eviction blkdev-icl-rmw-eviction.c)
 add_executable(accum accum.c)
 add_executable(charcount charcount.c)
 add_executable(cpp-hello cpp-hello.cpp)
@@ -110,6 +123,19 @@ endfunction()
 
 add_dump_target(pwm)
 add_dump_target(blkdev)
+add_dump_target(blkdev-pal-parallelism)
+add_dump_target(blkdev-qdepth)
+add_dump_target(blkdev-pm1725a-probe)
+add_dump_target(blkdev-pm1725a-probe-1sector)
+add_dump_target(blkdev-icl-fill)
+add_dump_target(blkdev-icl-sustained)
+add_dump_target(blkdev-icl-eviction-order)
+add_dump_target(blkdev-icl-ryow)
+add_dump_target(blkdev-icl-read-hit-latency)
+add_dump_target(blkdev-icl-eviction-then-read)
+add_dump_target(blkdev-icl-rmw-cold)
+add_dump_target(blkdev-icl-rmw-warm)
+add_dump_target(blkdev-icl-rmw-eviction)
 add_dump_target(accum)
 add_dump_target(charcount)
 add_dump_target(cpp-hello)
@@ -142,4 +168,18 @@ add_custom_command(
 # Add a target for spiflash.img
 add_custom_target(spiflash_img ALL
     DEPENDS ${CMAKE_BINARY_DIR}/spiflash.img
+)
+
+set(SSD_LATENCY_BASELINE_DIR
+    "${CMAKE_SOURCE_DIR}/ssd_latency_results"
+    CACHE PATH "Baseline SSD latency CSV directory")
+set(SSD_LATENCY_NEW_RESULTS_DIR
+    "${SSD_LATENCY_BASELINE_DIR}"
+    CACHE PATH "New SSD latency CSV directory to compare against the baseline")
+
+add_custom_target(ssd-latency-csv-regression
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/compare_csvs.py
+            ${SSD_LATENCY_BASELINE_DIR}
+            ${SSD_LATENCY_NEW_RESULTS_DIR}
+    COMMENT "Comparing SSD latency CSV curves against baselines"
 )
