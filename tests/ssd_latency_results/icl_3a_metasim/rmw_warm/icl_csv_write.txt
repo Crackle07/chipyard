@@ -1,0 +1,8 @@
+icl_csv_write seq=0 tag=0 offset=0 len=32 lpn=0 t_submit=56388 t_ack=80460 latency_cycles=24072 was_hit=0 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0
+icl_csv_write seq=1 tag=0 offset=32 len=32 lpn=1 t_submit=106948 t_ack=131020 latency_cycles=24072 was_hit=0 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0
+icl_csv_write seq=2 tag=0 offset=64 len=32 lpn=2 t_submit=158210 t_ack=182282 latency_cycles=24072 was_hit=0 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0
+icl_csv_write seq=3 tag=0 offset=96 len=32 lpn=3 t_submit=208116 t_ack=232188 latency_cycles=24072 was_hit=0 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0
+icl_csv_write seq=4 tag=0 offset=0 len=8 lpn=0 t_submit=243970 t_ack=268042 latency_cycles=24072 was_hit=1 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0
+icl_csv_write seq=5 tag=0 offset=32 len=8 lpn=1 t_submit=280194 t_ack=304266 latency_cycles=24072 was_hit=1 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0
+icl_csv_write seq=6 tag=0 offset=64 len=8 lpn=2 t_submit=316418 t_ack=340490 latency_cycles=24072 was_hit=1 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0
+icl_csv_write seq=7 tag=0 offset=96 len=8 lpn=3 t_submit=352642 t_ack=376714 latency_cycles=24072 was_hit=1 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0

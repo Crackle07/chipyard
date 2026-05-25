@@ -1,0 +1,1 @@
+icl_csv_write seq=0 tag=0 offset=0 len=32 lpn=0 t_submit=51970 t_ack=76042 latency_cycles=24072 was_hit=0 was_eviction_triggered=0 victim_lpn=-1 icl_rmw_triggered=0 icl_rmw_fetch_cycles=0

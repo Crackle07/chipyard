@@ -1,0 +1,4 @@
+icl_csv_read seq=0 tag=0 offset=0 len=32 lpn=0 t_submit=308678 t_ack=312750 latency_cycles=4072 was_read_hit=1
+icl_csv_read seq=1 tag=0 offset=32 len=32 lpn=1 t_submit=394926 t_ack=398998 latency_cycles=4072 was_read_hit=1
+icl_csv_read seq=2 tag=0 offset=64 len=32 lpn=2 t_submit=481746 t_ack=485818 latency_cycles=4072 was_read_hit=1
+icl_csv_read seq=3 tag=0 offset=96 len=32 lpn=3 t_submit=568402 t_ack=572474 latency_cycles=4072 was_read_hit=1

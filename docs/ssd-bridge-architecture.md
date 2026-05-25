@@ -123,3 +123,80 @@ SimpleSSD was rejected for this port. The important reasons are architectural:
 
 A purpose-built C++ model can be deterministic, small enough to upstream, and
 matched to the FAME-1 token contract by using `bdev_target_cycle` directly.
+
+## Validating the SSD Latency Model
+
+The model is validated end-to-end by running the baremetal PAL parallelism
+benchmark (`tests/blkdev-pal-parallelism.c`) under a Verilator metasim of the
+`FireSimRocketSSDLatencyConfig` target. The benchmark issues two batches of 8
+single-sector requests — stride-8 (`sectors 0,8,16,...,56`) and contiguous
+(`sectors 0..7`) — and prints `stride8_cycles`, `contiguous_cycles`, and their
+ratio for reads and writes. With `Channel=N,Die=1`, stride-8 collides on a
+single channel while contiguous spreads one request per channel, so the
+stride-over-contiguous ratio should approach `N` as channels increase.
+
+The model is configured via an INI file passed through the bridge driver flag
+`+blkdev-ssd-config0=<path>`. A backing image is required even when the
+benchmark issues no real I/O (use `truncate -s 16M`). Standard validation
+recipe:
+
+```bash
+# 1. Write the model config. Sweep Channel/Die/Read.LSB to validate behaviour.
+cat >/tmp/ssd-pal-write-1ch-8die.ini <<'EOF'
+[sim]
+FixedPolicy=false
+TargetClockHz=1000000000
+
+[pal]
+Channel=1
+Way=1
+Die=8
+Plane=1
+PageSize=512
+DMASpeed=512000000000
+NANDType=SLC
+Read.LSB=5000
+Program.LSB=25000
+
+[hil]
+CmdOverhead=2
+CompletionOverhead=3
+HostBandwidth=512000000000
+EOF
+
+# 2. Provide a backing image (size does not matter for the benchmark).
+truncate -s 16M /tmp/blkdev-pal-write-1ch-8die.disk
+
+# 3. Run the metasim from sims/firesim with sourceme-manager.sh sourced.
+cd /scratch/anishs/chipyard/sims/firesim
+source sourceme-manager.sh
+
+make -C sim run-verilator \
+  TARGET_PROJECT=firechip \
+  TARGET_PROJECT_MAKEFRAG=/scratch/anishs/chipyard/generators/firechip/chip/src/main/makefrag/firesim \
+  TARGET_CONFIG=FireSimRocketSSDLatencyConfig \
+  PLATFORM=f1 \
+  PLATFORM_CONFIG=BaseF1Config \
+  SIM_BINARY=/scratch/anishs/chipyard/tests/build/blkdev-pal-parallelism.riscv \
+  MIDAS_LEVEL_SIM_ARGS=+max-cycles=5000000 \
+  EXTRA_SIM_ARGS='+blkdev0=/tmp/blkdev-pal-write-1ch-8die.disk +blkdev-ssd-config0=/tmp/ssd-pal-write-1ch-8die.ini'
+```
+
+Fixed pieces of the recipe:
+
+- `TARGET_CONFIG` must be `FireSimRocketSSDLatencyConfig` (defined in
+  `generators/firechip/chip/src/main/scala/TargetConfigs.scala`); the default
+  `FireSimRocketConfig` uses the static `read_latency`/`write_latency` model.
+- `SIM_BINARY` must point at `tests/build/blkdev-pal-parallelism.riscv`. Build
+  with `cmake --build tests/build` if it is missing.
+- Both `+blkdev0=` and `+blkdev-ssd-config0=` are required; omit the INI and
+  the bridge falls back to the static-latency policy and validation results
+  are meaningless.
+
+Expected results: with `Channel=8,Die=1`, stride-8 reads serialise on one
+channel and contiguous reads parallelise across eight, so
+`stride8_over_contiguous_ratio` lands near 8.0. Sweeping `Channel` should move
+the ratio linearly; sweeping `Read.LSB` should move absolute cycle counts
+without changing the ratio. Historical sweeps are checked into
+`tests/ssd_latency_results/` and serve as the regression baseline — see
+`tests/ssd_latency_results/README.md` for the canonical numbers.

@@ -1,0 +1,5 @@
+date,source,benchmark,target_clock_hz,channels,ways,dies,planes,page_size_bytes,read_lsb_ns,program_lsb_ns,cmd_overhead_cycles,completion_overhead_cycles,dma_speed_Bps,host_bandwidth_Bps,stride8_cycles,contiguous_cycles,stride8_over_contiguous_ratio,notes
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,1,1,1,1,512,5000,5000,2,3,512000000000,512000000000,40645,40481,1.004,"Channel=1: stride8 and contiguous both serialize on one channel"
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,2,1,1,1,512,5000,5000,2,3,512000000000,512000000000,40645,20526,1.980,"Channel=2"
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,4,1,1,1,512,5000,5000,2,3,512000000000,512000000000,40645,10794,3.766,"Channel=4"
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,8,1,1,1,512,5000,5000,2,3,512000000000,512000000000,40645,6306,6.445,"Channel=8"

@@ -1,0 +1,3 @@
+date,source,benchmark,target_clock_hz,channels,ways,dies,planes,page_size_bytes,operation,read_lsb_ns,program_lsb_ns,cmd_overhead_cycles,completion_overhead_cycles,dma_speed_Bps,host_bandwidth_Bps,stride8_cycles,contiguous_cycles,stride8_over_contiguous_ratio,notes
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,8,1,1,1,512,read,5000,25000,2,3,512000000000,512000000000,40574,6304,6.436,"Read half of combined read/write PAL benchmark"
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,8,1,1,1,512,write,5000,25000,2,3,512000000000,512000000000,200602,26703,7.512,"Write half of combined read/write PAL benchmark"

@@ -1,0 +1,5 @@
+slc_baseline_contiguous_read_predicted_cycles 5015
+slc_baseline_total_beats 128
+slc_baseline_measured_cycles 6304
+slc_baseline_delta_cycles 1289
+slc_baseline_cycles_per_mmio_beat 10.0703

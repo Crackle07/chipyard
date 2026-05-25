@@ -1,0 +1,17 @@
+config tests/ssd_configs/pm1725a.ini
+log tests/ssd_latency_results/pm1725a_metasim_probe/run.log
+config_dump ssd_latency_model_config dev=0 path=/scratch/anishs/chipyard/tests/ssd_configs/pm1725a.ini fixed_policy=0 cell_type=TLC n_channels=16 n_dies_per_channel=4 n_planes=2 page_size_bytes=16384 bus_speed_mtps=533 tR_LSB_ns=77000 wb_enabled=1 host_overhead_cycles=4072 host_bandwidth_Bps=3300000000
+probe_sectors 8
+probe_beats 128
+page_type LSB
+read_cycles 77000
+nand_dma_cycles 7685
+host_transfer_cycles 1242
+host_overhead_cycles 4072
+model_predicted_cycles 90000
+drain_cycles 1099
+predicted_cycles 91099
+measured_cycles 91099
+delta_cycles 0
+tolerance_cycles 50
+PASS

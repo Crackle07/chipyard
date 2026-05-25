@@ -1,0 +1,3 @@
+date,source,benchmark,target_clock_hz,channels,ways,dies,planes,page_size_bytes,read_lsb_ns,program_lsb_ns,cmd_overhead_cycles,completion_overhead_cycles,dma_speed_Bps,host_bandwidth_Bps,stride8_cycles,contiguous_cycles,stride8_over_contiguous_ratio,notes
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,1,1,8,1,512,5000,5000,2,3,512000000000,512000000000,40594,6335,6.408,"Channel=1,Die=8: same channel, distinct dies interleave NAND phase"
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,1,1,8,1,512,25000,5000,2,3,512000000000,512000000000,200594,26312,7.624,"Higher read latency reduces fixed overhead impact"

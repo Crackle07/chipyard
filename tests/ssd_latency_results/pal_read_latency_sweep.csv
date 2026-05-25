@@ -1,0 +1,5 @@
+date,source,benchmark,target_clock_hz,channels,ways,dies,planes,page_size_bytes,read_lsb_ns,program_lsb_ns,cmd_overhead_cycles,completion_overhead_cycles,dma_speed_Bps,host_bandwidth_Bps,stride8_cycles,contiguous_cycles,stride8_over_contiguous_ratio,notes
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,8,1,1,1,512,1000,5000,2,3,512000000000,512000000000,8645,2329,3.712,"Fixed software/bridge overhead is large relative to 1 us read"
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,8,1,1,1,512,10000,5000,2,3,512000000000,512000000000,80585,11294,7.135,""
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,8,1,1,1,512,25000,5000,2,3,512000000000,512000000000,200645,26274,7.637,""
+2026-05-12,user_metasim,blkdev-pal-parallelism,1000000000,8,1,1,1,512,250000,5000,2,3,512000000000,512000000000,2000585,251294,7.961,"Approaches ideal 8x as modeled latency dominates overhead"

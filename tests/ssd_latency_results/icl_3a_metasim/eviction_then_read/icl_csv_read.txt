@@ -1,0 +1,1 @@
+icl_csv_read seq=0 tag=0 offset=0 len=32 lpn=0 t_submit=1069254 t_ack=1186032 latency_cycles=116778 was_read_hit=0

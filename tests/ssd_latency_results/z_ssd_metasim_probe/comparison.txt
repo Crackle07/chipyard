@@ -1,0 +1,17 @@
+config tests/ssd_configs/z_ssd.ini
+log tests/ssd_latency_results/z_ssd_metasim_probe/run.log
+config_dump ssd_latency_model_config dev=0 path=/scratch/anishs/chipyard/tests/ssd_configs/z_ssd.ini fixed_policy=0 cell_type=SLC n_channels=4 n_dies_per_channel=2 n_planes=2 page_size_bytes=16384 bus_speed_mtps=800 tR_LSB_ns=3000 wb_enabled=1 host_overhead_cycles=3871 host_bandwidth_Bps=512000000000
+probe_sectors 8
+probe_beats 128
+page_type SINGLE
+read_cycles 3000
+nand_dma_cycles 5120
+host_transfer_cycles 8
+host_overhead_cycles 3871
+model_predicted_cycles 12000
+drain_cycles 1099
+predicted_cycles 13099
+measured_cycles 13135
+delta_cycles 36
+tolerance_cycles 50
+PASS
