@@ -50,6 +50,9 @@ class WithFireSimFAME5 extends Config((site, here, up) => {
 
 class WithNIC extends icenet.WithIceNIC(inBufFlits = 8192, ctrlQueueDepth = 64)
 
+class WithSSDLatencyBlockDeviceDepth extends Config(
+  new testchipip.iceblk.WithNBlockDeviceTrackers(256))
+
 // Adds a small/large NVDLA to the system
 class WithNVDLALarge extends nvidia.blocks.dla.WithNVDLA("large")
 class WithNVDLASmall extends nvidia.blocks.dla.WithNVDLA("small")
@@ -199,6 +202,10 @@ class FireSimRocketConfig extends Config(
   new WithFireSimConfigTweaks ++
   new chipyard.RocketConfig)
 // DOC include end: firesimconfig
+
+class FireSimRocketSSDLatencyConfig extends Config(
+  new WithSSDLatencyBlockDeviceDepth ++
+  new FireSimRocketConfig)
 
 class FireSimRocket1GiBDRAMConfig extends Config(
   new freechips.rocketchip.subsystem.WithExtMemSize((1 << 30) * 1L) ++

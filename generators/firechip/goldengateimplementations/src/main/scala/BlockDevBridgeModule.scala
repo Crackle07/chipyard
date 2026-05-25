@@ -32,17 +32,18 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
     val io = IO(new WidgetIO())
     val hPort = IO(HostPort(new BlockDevBridgeTargetIO(blockDevExternal)))
 
-    val reqBuf = Module(new Queue(new BlockDeviceRequest(blockDevExternal), 10))
-    val dataBuf = Module(new Queue(new BlockDeviceData(blockDevExternal), 32))
+    val reqBuf = Module(new Queue(new BlockDeviceRequest(blockDevExternal), blockDevExternal.reqQueueDepth))
+    val dataBuf = Module(new Queue(new BlockDeviceData(blockDevExternal), blockDevExternal.dataQueueDepth))
 
-    val rRespBuf = Module(new Queue(new BlockDeviceData(blockDevExternal), 32))
-    val wAckBuf = Module(new Queue(UInt(tagBits.W), 4))
+    val rRespBuf = Module(new Queue(new BlockDeviceData(blockDevExternal), blockDevExternal.rRespQueueDepth))
+    val wAckBuf = Module(new Queue(UInt(tagBits.W), blockDevExternal.wAckQueueDepth))
 
     val target = hPort.hBits.bdev
     val channelCtrlSignals = Seq(hPort.toHost.hValid,
                                  hPort.fromHost.hReady)
     val rRespStallN = Wire(Bool()) // Unset if the SW model hasn't returned the response data in time
     val wAckStallN = Wire(Bool())  // As above, but with a write acknowledgement
+    val hostTiming = Wire(Bool())
     val tFireHelper = DecoupledHelper((channelCtrlSignals ++ Seq(
                                        reqBuf.io.enq.ready,
                                        dataBuf.io.enq.ready,
@@ -107,7 +108,9 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
           // New write request received
           when(wDone) {
             assert(valid, "Write data received for unallocated tracker: %d\n", idx.U)
-            writeLatencyPipe.io.enq.valid := true.B
+            when (!hostTiming) {
+              writeLatencyPipe.io.enq.valid := true.B
+            }
             valid := false.B
           }.elsewhen (wReqFire) {
             valid := true.B
@@ -125,7 +128,7 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
       // Read latency is simply the number of cycles between read-req and first resp beat
       val readLatencyPipe = Module(new DynamicLatencyPipe(UInt(sectorBits.W), nTrackers, latencyBits))
 
-      readLatencyPipe.io.enq.valid := tFire && target.req.fire && !target.req.bits.write
+      readLatencyPipe.io.enq.valid := !hostTiming && tFire && target.req.fire && !target.req.bits.write
       readLatencyPipe.io.enq.bits := target.req.bits.len
       readLatencyPipe.io.tCycle := tCycle
       readLatencyPipe.io.latency := readLatency
@@ -177,6 +180,24 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
 
       wAckBuf.io.deq.ready := tFireHelper.fire(wAckStallN) && returnWrite && target.resp.ready
       rRespBuf.io.deq.ready := tFireHelper.fire(rRespStallN) && readRespBusy && target.resp.ready
+
+      when (hostTiming) {
+        val returnHostWrite = wAckBuf.io.deq.valid
+        target.resp.valid := wAckBuf.io.deq.valid || rRespBuf.io.deq.valid
+        target.resp.bits.data := 0.U
+        target.resp.bits.tag := 0.U
+        when (returnHostWrite) {
+          target.resp.bits.tag := wAckBuf.io.deq.bits
+        }.elsewhen (rRespBuf.io.deq.valid) {
+          target.resp.bits.data := rRespBuf.io.deq.bits.data
+          target.resp.bits.tag := rRespBuf.io.deq.bits.tag
+        }
+
+        wAckStallN := true.B
+        rRespStallN := true.B
+        wAckBuf.io.deq.ready := tFireHelper.fire() && target.resp.ready && returnHostWrite
+        rRespBuf.io.deq.ready := tFireHelper.fire() && target.resp.ready && !returnHostWrite && rRespBuf.io.deq.valid
+      }
     } // withReset{}
 
     // Memory mapped registers
@@ -227,12 +248,13 @@ extends BridgeModule[HostPortIO[BlockDevBridgeTargetIO]]()(p) {
 
     // Indicates to the CPU-hosted component that we need to be serviced
     genROReg(reqBuf.io.deq.valid || dataBuf.io.deq.valid, "bdev_reqs_pending")
-    genROReg(~wAckStallN, "bdev_wack_stalled")
-    genROReg(~rRespStallN, "bdev_rresp_stalled")
+    genROReg(Mux(hostTiming, false.B, ~wAckStallN), "bdev_wack_stalled")
+    genROReg(Mux(hostTiming, false.B, ~rRespStallN), "bdev_rresp_stalled")
 
     // Expose the target cycle counter so future host latency models can
     // align completions with simulated target time.
     genROReg(tCycle, "bdev_target_cycle")
+    hostTiming := genWORegInit(Wire(Bool()), "bdev_host_timing", false.B)
 
     genCRFile()
 

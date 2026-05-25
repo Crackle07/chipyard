@@ -8,7 +8,11 @@ import chisel3._
 import chisel3.util._
 
 case class BlockDeviceConfig(
-  nTrackers: Int = 1
+  nTrackers: Int = 1,
+  reqQueueDepth: Int = 256,
+  dataQueueDepth: Int = 256,
+  rRespQueueDepth: Int = 256,
+  wAckQueueDepth: Int = 256,
 )
 
 trait HasBlockDeviceParameters {
