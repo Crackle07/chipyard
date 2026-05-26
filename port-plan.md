@@ -140,3 +140,43 @@ echo "$mfc_extra_anno_contents" > /scratch/anishs/chipyard/sims/firesim-staging/
 jq -s '[.[][]]' /scratch/anishs/chipyard/sims/firesim-staging/generated-src/firechip.chip.FireSim.FireSimRocketSSDLatencyConfig/firechip.chip.FireSim.FireSimRocketSSDLatencyConfig.anno.json /scratch/anishs/chipyard/sims/firesim-staging/generated-src/firechip.chip.FireSim.FireSimRocketSSDLatencyConfig/firechip.chip.FireSim.FireSimRocketSSDLatencyConfig.extrafirtool.anno.json > /scratch/anishs/chipyard/sims/firesim-staging/generated-src/firechip.chip.FireSim.FireSimRocketSSDLatencyConfig/firechip.chip.FireSim.FireSimRocketSSDLatencyConfig.appended.anno.json
 make: Leaving directory '/scratch/anishs/chipyard/sims/firesim-staging'
 ```
+
+# Phase 4 Step 4 Retry -- Testchipip Pointer Correction
+
+- Timestamp: 2026-05-25T20:27:52-07:00
+- Summary: Corrected the `testchipip` superproject pointer after the Step 4 ABI miss, split the contaminated Step 3 status commit, and removed leftover Step 4 candidate edits.
+- Diagnostic scenario: SCENARIO X
+  - `ce3bab5a` still recorded `generators/testchipip` at `f86a977e9a2d0c7831c8e2ce698ec27e0615a68f`.
+  - The amended Step 3 status commit had absorbed the corrected `generators/testchipip` pointer to `204d231ff73e053c97d6933bf5e4296f9ab6236d`.
+- Fix option used: OPTION 1
+  - Used the low-risk split path because only the current top commit needed repair, and `git branch -r --contains 381da651` showed no remote refs containing the contaminated commit.
+  - Replaced the contaminated status commit with a status-only commit, then added a separate pointer correction commit.
+- Final `ssd-port-f2` commit log before this documentation commit:
+
+```text
+7bbdec07 Bump testchipip to include 256-bit beat widening
+e36636a3 Record Phase 4 Step 3 status
+0bcb34bf Port SSD config wiring and 256-bit block-device ABI declaration
+373b8718 Add port plan to ssd-port-f2 branch
+ce3bab5a Bump testchipip for SSD block-device tracker depth (f2 port)
+5845cf17 bump firesim with various f2 fixes
+```
+
+- Final `testchipip` SHA: `204d231ff73e053c97d6933bf5e4296f9ab6236d`
+- `testchipip` local history:
+
+```text
+204d231 Allow 256 block-device trackers
+c5e7bf3 Widen block device beats to 256 bits
+5dca05b Add FastRAM for faster sims with DRAM over serialTL (#271)
+```
+
+- Confirmation: `dataBitsPerBeat = 256` in `generators/testchipip/src/main/scala/iceblk/BlockDevice.scala`.
+- Confirmation: `require (nTrackers <= 256)` is present in `generators/testchipip/src/main/scala/iceblk/BlockDevice.scala`.
+- Confirmation: leftover Step 4 candidate edits were discarded:
+  - `generators/firechip/bridgestubs/src/main/cc/bridges/blockdev.cc`
+  - `generators/firechip/bridgestubs/src/main/cc/bridges/blockdev.h`
+  - `generators/firechip/goldengateimplementations/src/main/scala/BlockDevBridgeModule.scala`
+  - `generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.cc`
+  - `generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.h`
+- Confirmation: working tree was clean before this documentation update.
