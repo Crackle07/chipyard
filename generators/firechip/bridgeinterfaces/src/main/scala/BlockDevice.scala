@@ -8,7 +8,11 @@ import chisel3._
 import chisel3.util._
 
 case class BlockDeviceConfig(
-  nTrackers: Int = 1
+  nTrackers: Int = 1,
+  reqQueueDepth: Int = 256,
+  dataQueueDepth: Int = 256,
+  rRespQueueDepth: Int = 256,
+  wAckQueueDepth: Int = 256,
 )
 
 trait HasBlockDeviceParameters {
@@ -18,7 +22,7 @@ trait HasBlockDeviceParameters {
   def nTrackers = bdParams.nTrackers
   def tagBits = log2Up(nTrackers)
   def nTrackerBits = log2Up(nTrackers+1)
-  def dataBitsPerBeat = 64
+  def dataBitsPerBeat = 256
   def dataBeats = (dataBytes * 8) / dataBitsPerBeat
   def sectorSize = log2Ceil(sectorBits/8)
   def beatIdxBits = log2Ceil(dataBeats)
