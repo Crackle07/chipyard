@@ -180,3 +180,166 @@ c5e7bf3 Widen block device beats to 256 bits
   - `generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.cc`
   - `generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.h`
 - Confirmation: working tree was clean before this documentation update.
+
+# Phase 4 Step 4 Status
+
+- Timestamp: 2026-05-25T20:57:36-07:00
+- Summary: Ported the SSD PAL/ICL host-timing model, 256-deep host-side block-device ABI implementation, plusarg parsing, and Golden Gate host-timing bypass; Gate 1 passed, Gate 2 was skipped by instruction, and the corrected F2 FireSim compile passed.
+- Step 4 commit: `a6a13d5c Port SSD host-timing model and 256-deep ABI C++ implementation`
+- Files changed by Step 4:
+
+```text
+generators/firechip/goldengateimplementations/src/main/scala/BlockDevBridgeModule.scala
+generators/firechip/bridgestubs/src/main/cc/bridges/blockdev.cc
+generators/firechip/bridgestubs/src/main/cc/bridges/blockdev.h
+generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.cc
+generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.h
+```
+
+- `ssd_latency_model` source inventory:
+  - `ssd_latency_model.cc`: 896 lines, byte-exact copy from `SSD`.
+  - `ssd_latency_model.h`: 178 lines, byte-exact copy from `SSD`.
+
+## ABI consistency check
+
+`generators/firechip/bridgeinterfaces/src/main/scala/BlockDevice.scala` declares:
+
+```scala
+case class BlockDeviceConfig(
+  nTrackers: Int = 1,
+  reqQueueDepth: Int = 256,
+  dataQueueDepth: Int = 256,
+  rRespQueueDepth: Int = 256,
+  wAckQueueDepth: Int = 256,
+)
+```
+
+| Parameter | Scala value | C++ / bridge value | Result |
+| --- | --- | --- | --- |
+| Data beat width | `256` in firechip bridge interface and `testchipip` `BlockDeviceIO` | `BEAT_WORDS = 4`, `uint64_t data[BEAT_WORDS]`, 4 x 64 bits = 256 bits | PASS |
+| Tracker count max | `testchipip` permits `nTrackers <= 256`; `FireSimRocketSSDLatencyConfig` uses 256 | `blockdev_t` receives `num_trackers`, stores `_ntags`, and sizes `write_trackers` from `_ntags` | PASS |
+| req queue depth | `reqQueueDepth = 256` | `BlockDevBridgeModule` allocates `reqBuf` from `blockDevExternal.reqQueueDepth`; C++ has no conflicting hard-coded depth | PASS |
+| data queue depth | `dataQueueDepth = 256` | `BlockDevBridgeModule` allocates `dataBuf` from `blockDevExternal.dataQueueDepth`; C++ has no conflicting hard-coded depth | PASS |
+| rResp queue depth | `rRespQueueDepth = 256` | `BlockDevBridgeModule` allocates `rRespBuf` from `blockDevExternal.rRespQueueDepth`; C++ has no conflicting hard-coded depth | PASS |
+| wAck queue depth | `wAckQueueDepth = 256` | `BlockDevBridgeModule` allocates `wAckBuf` from `blockDevExternal.wAckQueueDepth`; C++ has no conflicting hard-coded depth | PASS |
+
+Gate 3 log also confirms Golden Gate instantiated `BlockDevBridgeModule` with `BlockDeviceConfig(256,256,256,256,256)`.
+
+## Gate 1 - C++ unit tests
+
+Commands run:
+
+```bash
+mkdir -p /tmp/ssd-unit-tests
+git show SSD:generators/firechip/bridgestubs/src/main/cc/bridges/test/ssd_latency_model_unit.cc \
+  > /tmp/ssd-unit-tests/ssd_latency_model_unit.cc
+git show SSD:generators/firechip/bridgestubs/src/main/cc/bridges/test/blockdev_host_timing_unit.cc \
+  > /tmp/ssd-unit-tests/blockdev_host_timing_unit.cc
+
+c++ -std=c++17 \
+  -I generators/firechip/bridgestubs/src/main/cc \
+  -I sims/firesim/sim/midas/src/main/cc \
+  /tmp/ssd-unit-tests/ssd_latency_model_unit.cc \
+  generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.cc \
+  -o /tmp/ssd-unit-tests/ssd_latency_model_unit
+/tmp/ssd-unit-tests/ssd_latency_model_unit
+
+c++ -std=c++17 -DBLOCKDEV_UNIT_TEST \
+  -I generators/firechip/bridgestubs/src/main/cc \
+  -I sims/firesim/sim/midas/src/main/cc \
+  /tmp/ssd-unit-tests/blockdev_host_timing_unit.cc \
+  generators/firechip/bridgestubs/src/main/cc/bridges/blockdev.cc \
+  generators/firechip/bridgestubs/src/main/cc/bridges/ssd_latency_model.cc \
+  -o /tmp/ssd-unit-tests/blockdev_host_timing_unit
+/tmp/ssd-unit-tests/blockdev_host_timing_unit
+```
+
+Results:
+
+- `ssd_latency_model_unit`: compile PASS, run PASS, exit 0.
+  - Output included expected negative-config messages:
+
+```text
+ssd_latency_model: unsupported cell type: wat
+ssd_latency_model: icl_eviction_policy must be "lru"
+```
+
+- `blockdev_host_timing_unit`: original compile command without `blockdev.cc` failed at link time with undefined `blockdev_t` references, so it was retried with `blockdev.cc` included. Retry compile PASS, run PASS, exit 0.
+  - Output included `ssd_latency_model_config`, `icl_csv_read`, `icl_csv_write`, and the expected completion-heap overflow diagnostic:
+
+```text
+Block device completion heap exceeded 1 entries.
+```
+
+## Gate 2 - Scala BridgeSuite
+
+- Skipped by instruction for this Step 4 run; no in-tree SSD BridgeSuite port was attempted in this phase.
+
+## Gate 3 - FireSim compile
+
+Attempted F1 command:
+
+```bash
+make -C sim compile \
+  TARGET_PROJECT=firesim \
+  TARGET_PROJECT_MAKEFRAG=../../generators/firechip/chip/src/main/makefrag/firesim \
+  TARGET_CONFIG=FireSimRocketSSDLatencyConfig \
+  PLATFORM=f1 \
+  PLATFORM_CONFIG=BaseF1Config
+```
+
+Result: FAIL before compile. This F2-bump FireSim checkout rejects `PLATFORM=f1`:
+
+```text
+make/fpga.mk:24: *** Invalid PLATFORM used: f1.  Stop.
+```
+
+Attempted F2 command with the originally supplied makefrag path:
+
+```bash
+make -C sim compile \
+  TARGET_PROJECT=firesim \
+  TARGET_PROJECT_MAKEFRAG=../../generators/firechip/chip/src/main/makefrag/firesim \
+  TARGET_CONFIG=FireSimRocketSSDLatencyConfig \
+  PLATFORM=f2 \
+  PLATFORM_CONFIG=BaseF2Config
+```
+
+Result: FAIL before compile because `make -C sim` resolves paths from `sims/firesim/sim`, so the makefrag path was one directory short:
+
+```text
+Makefile:51: ../../generators/firechip/chip/src/main/makefrag/firesim/config.mk: No such file or directory
+make: *** No rule to make target '../../generators/firechip/chip/src/main/makefrag/firesim/config.mk'.  Stop.
+```
+
+Corrected F2 command:
+
+```bash
+cd /scratch/anishs/chipyard/sims/firesim
+source sourceme-manager.sh
+make -C sim compile \
+  TARGET_PROJECT=firesim \
+  TARGET_PROJECT_MAKEFRAG=../../../generators/firechip/chip/src/main/makefrag/firesim \
+  TARGET_CONFIG=FireSimRocketSSDLatencyConfig \
+  PLATFORM=f2 \
+  PLATFORM_CONFIG=BaseF2Config 2>&1 | tee /tmp/gate3-f2-retry.log
+```
+
+Result: PASS, exit 0. The command emitted F2 Golden Gate outputs under:
+
+```text
+sims/firesim/sim/generated-src/f2/f2-firesim-FireSim-FireSimRocketSSDLatencyConfig-BaseF2Config/
+```
+
+Relevant log excerpt:
+
+```text
+Instantiating bridge ep of type firechip.goldengateimplementations.BlockDevBridgeModule
+  With constructor arguments: BlockDeviceConfig(256,256,256,256,256)
+Simulator Memory Map:
+  [   0,   ff]: BlockDevBridgeModule_0
+QSFP bits at FPGATop 256
+make: Leaving directory '/scratch/anishs/chipyard/sims/firesim/sim'
+```
+
+Note: `source sourceme-manager.sh` reported a missing `/home/eecs/anishs/firesim.pem`, but that warning did not prevent the local compile target from completing.
